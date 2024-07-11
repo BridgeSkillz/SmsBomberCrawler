@@ -54,7 +54,7 @@ class Gemini:
     def generate_queries(self):
         self.newQueries = []
         self.chat = self.model.start_chat(history=[])
-        queries = self.getResponseFromGemini("Generate 5 Query")
+        queries = self.getResponseFromGemini("Generate 2 Query") #reduced it due to rate limit error
         self.QueryDuplicateValidation(queries)
         return self.newQueries
 

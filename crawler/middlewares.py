@@ -101,3 +101,45 @@ class CrawlerDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+
+from urllib.parse import urlparse
+from scrapy.http import HtmlResponse
+
+from CommonMethods import get_domain_link
+
+class FieldDetectionMiddleware:
+    # def __init__(self):
+        
+
+    def process_request(self, request, spider):
+        domain = get_domain_link(request.url)
+        if domain in spider.domains_with_mobile_field:
+            # spider.logger.info(f"Skipping {request.url} as it has a detected field")
+            return None  # Returning None means the request is dropped
+        return None  # Let Scrapy handle the request as usual
+
+    def process_response(self, request, response, spider):
+        domain = get_domain_link(response.url)
+        if (
+            self.phone_number_field_detector(response)
+            or self.tel_field_detector(response)
+            or self.input_field_detector(response)
+        ):
+            spider.logger.info(f"Detected field at {response.url}")
+            spider.domains_with_mobile_field.add(domain)
+        return response
+
+    def phone_number_field_detector(self, response: HtmlResponse):
+        return response.xpath("//input[@type='tel']").get() is not None
+
+    def tel_field_detector(self, response: HtmlResponse):
+        return response.xpath("//input[contains(@href, 'tel:')]").get() is not None
+
+    def input_field_detector(self, response: HtmlResponse):
+        return (
+            response.xpath(
+                "//input[contains(@name, 'phone') or contains(@name, 'mobile') or contains(@name,'otp')]"
+            ).get()
+            is not None
+        )

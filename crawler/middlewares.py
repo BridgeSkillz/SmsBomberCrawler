@@ -4,11 +4,9 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
-
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-
-
+from scrapy.exceptions import IgnoreRequest
 class CrawlerSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
@@ -113,33 +111,21 @@ class FieldDetectionMiddleware:
         
 
     def process_request(self, request, spider):
-        domain = get_domain_link(request.url)
+        domain = urlparse(request.url).netloc
         if domain in spider.domains_with_mobile_field:
             # spider.logger.info(f"Skipping {request.url} as it has a detected field")
-            return None  # Returning None means the request is dropped
+            raise IgnoreRequest()   # Returning None means the request is dropped
         return None  # Let Scrapy handle the request as usual
 
-    def process_response(self, request, response, spider):
-        domain = get_domain_link(response.url)
-        if (
-            self.phone_number_field_detector(response)
-            or self.tel_field_detector(response)
-            or self.input_field_detector(response)
-        ):
-            spider.logger.info(f"Detected field at {response.url}")
-            spider.domains_with_mobile_field.add(domain)
-        return response
+    # def process_response(self, request, response, spider):
+    #     # domain = urlparse(response.url).netloc
+    #     # if (
+    #     #     self.phone_number_field_detector(response)
+    #     #     or self.tel_field_detector(response)
+    #     #     or self.input_field_detector(response)
+    #     # ):
+    #     #     spider.logger.info(f"Detected field at {response.url}")
+    #     #     spider.domains_with_mobile_field.add(domain)
+    #     #     return None  # Returning None means the response is dropped
+    #     return response
 
-    def phone_number_field_detector(self, response: HtmlResponse):
-        return response.xpath("//input[@type='tel']").get() is not None
-
-    def tel_field_detector(self, response: HtmlResponse):
-        return response.xpath("//input[contains(@href, 'tel:')]").get() is not None
-
-    def input_field_detector(self, response: HtmlResponse):
-        return (
-            response.xpath(
-                "//input[contains(@name, 'phone') or contains(@name, 'mobile') or contains(@name,'otp')]"
-            ).get()
-            is not None
-        )
